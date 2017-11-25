@@ -126,8 +126,13 @@ void sendMsg(int socketFD, const char *msg){
  *      will terminate.
  * *********************************************************************/
 void recMsg(char *buffer, int socketFD){
+    //Zero out the buffer
     bzero(buffer, BUFFER_SIZE);
+
+    //Read from the socket
     int n = read(socketFD, buffer, BUFFER_SIZE);
+
+    //Check for success
     if(n < 0) error ("ERROR reading from socket");
 }
 
@@ -145,10 +150,12 @@ void recMsg(char *buffer, int socketFD){
  **********************************************************************/
 void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
     socklen_t clilen = sizeof(*cliAddr);
+
+    //Start accepting client connections
     *controlFD = accept(servFD,(struct sockaddr*) cliAddr, &clilen);
+
+    //Check for success
     if(*controlFD < 0) error("ERROR on accept");
-    else printf("Connection socket established\n");
-    return;
 }
 
 
@@ -230,10 +237,7 @@ int main(int argc, char *argv[]){
     //Accept client connection
     acceptClient(cliAddr, &connectSockFD, listenSockFD);
 
-    //Initialize buffer, read from socket
-   // bzero(buffer, 256);
-   // n = read(connectSockFD, buffer, 255);
-   // if(n < 0) error ("ERROR reading from socket");
+    //Get command and other info from the client
     recMsg(buffer, connectSockFD);
     printf("Here is the command the client sent: %s\n", buffer);
 
