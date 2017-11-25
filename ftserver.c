@@ -19,6 +19,8 @@
 #include <sys/socket.h> //defn's of structures needed for sockets
 #include <netinet/in.h> //constants and structs needed for internet domain addrs
 #include <netdb.h>
+const int BUFFER_SIZE = 500;
+
 
 
 /*********************************************************************
@@ -63,7 +65,7 @@ void createSocket(int *socketFD){
  *      on the command line.
  * ** Parameters: The serverPort number defined on command line, the
  *      file descriptor for the server socket, a pointer to the server's
- *      sockaddr_in struct, the file descriptor for the socket.
+ *      sockaddr_in struct, and the file descriptor for the socket.
  * ** Pre-Conditions: The server port number must be valid and
  *      defined, the server's socket must be instantiated.
  * ** Post-Conditions: A message will display in the console that the
@@ -72,7 +74,6 @@ void createSocket(int *socketFD){
 void startUp(int portNum, struct sockaddr_in *servAddr, int sockFD){
     //Initialize servAddr to zeros
     bzero((char*) servAddr, sizeof(*servAddr));
-    printf("servAddr zeroed out \n");
 
     //Set address family, port number(network byte order), and
     //host IP address
@@ -84,27 +85,50 @@ void startUp(int portNum, struct sockaddr_in *servAddr, int sockFD){
     if(bind(sockFD,(struct sockaddr *) servAddr, sizeof(*servAddr)) < 0)
         error("ERROR on binding");
 
-    printf("Server socket bound to host address and port number.\n");
-
     //Start listening for connections
     listen(sockFD,5);
-
+    printf("Server open and listening on port %i.\n", portNum);
 }
 
 
 
 /*********************************************************************
  * ** Function: sendMsg()
- * ** Description: Accepts and sends messages to the client
- * ** Parameters: A socket file descriptor (for the socket over which
- *      the message will be sent)
+ * ** Description: Sends messages to the client over the specified
+ *      socket. Terminates if there's an error writing to the socket.
+ * ** Parameters: A socket file descriptor (for the socket
+ *      over which the message will be sent), a pointer to a
+ *      const char message to be sent.
  * ** Pre-Conditions: The connection file descriptor must be associated
- *      with an open socket.
+ *      with an open socket. The char array must be malloc'd.
  * ** Post-Conditions: The message will be sent to a connected client.
  * *********************************************************************/
-void sendMsg(int socketFD){
+void sendMsg(int socketFD, const char *msg){
+    //Write to the socket
+    int success = write(socketFD, msg, BUFFER_SIZE);
+    if(success < 0)
+        error("ERROR writing message to socket.");
+}
 
-    return;
+
+
+/*********************************************************************
+ * ** Function: recMsg()
+ * ** Description: Reads messages from the socket for handling.
+ *      Function does its own error checking and terminates the
+ *      program if there's an error.
+ * ** Parameters: A pointer to a char array, a file descriptor
+ *      for the communication socket.
+ * ** Pre-Conditions: There is an active socket connection and a
+ *      char array has been malloc'd in main.
+ * ** Post-Conditions: The message will be available for use by other
+ *      functions like handleRequest. If an error occurs, the program
+ *      will terminate.
+ * *********************************************************************/
+void recMsg(char *buffer, int socketFD){
+    bzero(buffer, BUFFER_SIZE);
+    int n = read(socketFD, buffer, BUFFER_SIZE);
+    if(n < 0) error ("ERROR reading from socket");
 }
 
 
@@ -157,13 +181,22 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
  * ** Pre-Conditions:
  * ** Post-Conditions:
  * *********************************************************************/
+void handleRequest(){
+    //Receive command from the client
+    //If command is -l
+        //Send current directory listing across
+    //If command is -g
+        //Validate file name
+            //If valid, send file across
+            //Else send error message
+    //Else send error message
 
+}
 
 
 /*MAIN*/
 int main(int argc, char *argv[]){
     //Variable, file descriptors, and Struct definitions
-    const int BUFFER_SIZE = 500;
     int listenSockFD, connectSockFD, dataSockFD;
     int portNum;
     //socklen_t clilen; //Stores size of address of the client
@@ -190,20 +223,18 @@ int main(int argc, char *argv[]){
 
     //Create a new socket
     createSocket(&listenSockFD);
-    //printf("Listen Socket opened\n");
 
     //Start up server to listen
     startUp(portNum, servAddr, listenSockFD);
-    printf("Server open and listening on port %i.\n", portNum);
-
 
     //Accept client connection
     acceptClient(cliAddr, &connectSockFD, listenSockFD);
 
     //Initialize buffer, read from socket
-    bzero(buffer, 256);
-    n = read(connectSockFD, buffer, 255);
-    if(n < 0) error ("ERROR reading from socket");
+   // bzero(buffer, 256);
+   // n = read(connectSockFD, buffer, 255);
+   // if(n < 0) error ("ERROR reading from socket");
+    recMsg(buffer, connectSockFD);
     printf("Here is the command the client sent: %s\n", buffer);
 
     //Establish data connection
@@ -214,8 +245,12 @@ int main(int argc, char *argv[]){
     if(connect(dataSockFD, (struct sockaddr*) cliAddr, sizeof(*cliAddr)) < 0)
         error("ERROR establishing data connection.\n");
     printf("Data connecting poopies\n");
-    n = write(dataSockFD, "I got your command", 18);
-    if(n < 0) error("ERROR writing to socket.");
+    bzero(buffer, BUFFER_SIZE);
+    printf("Please enter your message: ");
+    fgets(buffer, BUFFER_SIZE, stdin);
+    sendMsg(dataSockFD, buffer);
+    //n = write(dataSockFD, "I got your command", 18);
+    //if(n < 0) error("ERROR writing to socket.");
 
     //Close socket
     close(dataSockFD);
