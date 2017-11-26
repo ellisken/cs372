@@ -141,7 +141,6 @@ void recMsg(char *buffer, int socketFD){
 
 
 
-
 /*********************************************************************
  * ** Function: acceptClient()
  * ** Description: Starts accepting clients on the socket created.
@@ -247,12 +246,39 @@ int inDir(char* fileName){
 
 /*********************************************************************
  * ** Function: sendFile()
- * ** Description:
- * ** Parameters:
- * ** Pre-Conditions:
- * ** Post-Conditions:
+ * ** Description: Gets the file specified by the client and sends
+ *      the file across in pieces until finished.
+ * ** Parameters: A pointer to the file name, the socket file
+ *      descriptor.
+ * ** Pre-Conditions: There must be an open between client
+ *      and server, the file name must be specified, the file
+ *      must exist in the directory.
+ * ** Post-Conditions: The file transfer will occur, otherwise
+ *      the program will terminate with an error message.
  * *********************************************************************/
+void sendFile(char *fileName, int socketFD){
+    //Create buffer for file transfer
+    char *buffer = malloc(BUFFER_SIZE);
+    //Create file pointer and open file to read
+    FILE *file = fopen(fileName, "r");
+    if(file == NULL) error("Can't open file.\n");
 
+    while(!feof(file)){
+        int numBytesRead = fread(buffer, sizeof(char), 500, file);
+        printf("%s\n", buffer);
+        printf("%i\n", numBytesRead);
+        //Send data chunks to client
+        int success = write(socketFD, buffer, numBytesRead);
+        if(success < 0)
+            error("ERROR writing message to socket.");
+    }
+    //Send end of transfer signal
+    //sendMsg(socketFD, buffer, "~done");
+    //Close file
+    fclose(file);
+    //Free buffer
+    free(buffer);
+}
 
 
 
@@ -278,17 +304,23 @@ void handleRequest(char *buffer, int socketFD){
         sendDir(socketFD);
     }
     //If command is !'%none', indicating that a filename
-    if(strncmp(buffer, "\%none", 5) != 0){
     //was entered by the client on the command-line
-        //Validate file name
+    if(strncmp(buffer, "\%none", 5) != 0){
+           //Validate file name
         if(inDir(buffer) != 0){
-            //If valid, send file across
+            //Save file name
+            char *fileName = malloc(BUFFER_SIZE);
+            strcpy(fileName, buffer);
+            //If valid, send file transfer intent
             sendMsg(socketFD, buffer, "fil\n");
+            //Send file across
+            sendFile(fileName, socketFD);
+            free(fileName);
         }
-        //Else send error message
+        //Else send error message: file not found
         else sendMsg(socketFD, buffer, "nof\n");
     }
-    //Else send error message
+    //Else send error message: command unknown
     else
         sendMsg(socketFD, buffer, "unk\n");
 }
@@ -332,15 +364,15 @@ int main(int argc, char *argv[]){
 
     //Get command and other info from the client
     recMsg(buffer, connectSockFD);
-    //printf("Here is the command the client sent: %s\n", buffer);
 
     //Get data port
     char *dataPortStr = malloc(BUFFER_SIZE);
     recMsg(dataPortStr, connectSockFD);
     int dataPort = atoi(dataPortStr);
+    //dataPort = atoi("12345");
 
     //Establish data connection
-    sleep(5);
+    //sleep(1);
     createSocket(&dataSockFD);
     printf("Data socket created.\n");
 

@@ -9,7 +9,8 @@
             by J. Kurose and K. Ross
 """
 from socket import *
-import argparse
+import argparse #For argument parsing
+import os #For interacting with current directory
 
 def main():
     #Get server name, server port number, command,
@@ -49,12 +50,12 @@ def main():
     transferSocket, addr = dataSocket.accept()
     response = getServResponse(transferSocket)
     print('received response: ' + response)
-    handleResponse(response, transferSocket)
+    handleResponse(response, transferSocket, fileName)
+    print("Interaction complete.")
 
-
-
-    clientSocket.close()
+    #Close sockets
     transferSocket.close()
+    clientSocket.close()
 
 
 
@@ -79,6 +80,7 @@ def initiateContact(portNum, serverName):
     return clientSocket
 
 
+
 """ Function: startListening()
     Description: Creates a socket to which the server
         can connect and send data on the data port number
@@ -94,6 +96,8 @@ def startListening(dataPort):
     dataSocket.bind(('', dataPort))
     dataSocket.listen(1)
     return dataSocket
+
+
 
 """ Function: makeRequest()
     Description: Depending on which arguments were received on
@@ -118,7 +122,6 @@ def makeRequest(listDir, fileName, socketFD):
 
 
 
-
 """ Function: getServResponse()
     Description: Receives the server's response to
         client's request and stores the response in a
@@ -136,6 +139,7 @@ def getServResponse(socketFD):
     return response
 
 
+
 """ Function: handleResponse()
     Description: Handles the server's response by either
         accepting and listing the server directory's contents
@@ -148,7 +152,7 @@ def getServResponse(socketFD):
     Post-Conditions: Will list the server's directory contents,
         accept a file transfer, or display an error message.
 """
-def handleResponse(response, socketFD):
+def handleResponse(response, socketFD, transferFile):
     #If response is 'dir', accept directory contents
     if response == "dir":
         print ("Accepting directory listing")
@@ -161,6 +165,7 @@ def handleResponse(response, socketFD):
     #If response is 'fil', accept file transfer
     elif response == "fil":
         print("Accepting file transfer")
+        receiveFile(transferFile, socketFD)
         return
     elif response == "nof":
         print ("FILE NOT FOUND")
@@ -191,12 +196,46 @@ def receiveDir(socketFD):
     return
 
 
+
 """ Function: receiveFile()
-    Description:
-    Parameters:
-    Pre-Conditions:
-    Post-Conditions:
+    Description: Opens a new file for writing the transferred
+        file contents to. If file name already exists, prompts
+        the user to rename.
+    Parameters: The file name specified on the command-line, the
+        file descriptor for the connection.
+    Pre-Conditions: There must be an open connection between
+        the client and the server. The file name must be specified.
+    Post-Conditions: The file transferred will be written to the
+        client's directory.
 """
+def receiveFile(fileName, socketFD):
+    #Check file does not already exist
+    #If file name exists, prompt user for action
+    if os.path.isfile('./'+ fileName):
+        #Handle renaming or replacement
+        choice = "default"
+        while choice != "-n" and choice != "-r":
+            print(fileName + " already in use\n")
+            choice = raw_input("Please enter -n to rename or -r to replace.\n")
+            if choice == "-n":
+                #Replace name, else do nothing
+                fileName = raw_input("Enter new name: ")
+
+    print(fileName)
+
+    #Open file for writing
+    file = open(fileName, "w")
+    #Receive file contents
+    #data = socketFD.recv(10)
+    data = getServResponse(socketFD)
+    while data:
+        file.write(data)
+        #data = socketFD.recv(10)
+        data = getServResponse(socketFD)
+    #Close file
+    file.close()
+
+    return
 
 
 if __name__ == '__main__':
