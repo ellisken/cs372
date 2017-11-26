@@ -1,7 +1,9 @@
 """
     Description: Implementation of a TCP connected simple file transfer
-            program.
-    Input:
+            program. (CS372 Fall '17 project 2)
+    Name:   Kendra Ellis
+    Input:  server name, server port number, command, file name, data
+            port number
     Output: Receives directory listing or .txt file transfer from
             ftserver.c
     Sources Cited: This program relies heavily on the TCP client example
