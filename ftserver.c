@@ -207,6 +207,44 @@ void sendDir(int socketFD){
 }
 
 
+
+/*********************************************************************
+ * ** Function: inDir()
+ * ** Description: Iterates over the server's current directory
+ *      contents and returns true if the given file name is in the
+ *      directory. Otherwise it returns false.
+ * ** Parameters: Pointer to string that contains the file name.
+ * ** Pre-Conditions: The file name must be defined.
+ * ** Post-Conditions: Returns true or false depending on whether
+ *      the exact file name is found.
+ * ** Sources Cited:
+ *      https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+ *      https://en.wikibooks.org/wiki/C_Programming/dirent.h
+ * *********************************************************************/
+int inDir(char* fileName){
+    //Create DIR stream pointer and dirent struct pointer
+    DIR *d;
+    struct dirent *dir;
+    //Create variable that signals whether fileName is in directory
+    int found = 0;
+
+    //Open the directory
+    d = opendir(".");
+
+    //Check open success
+    if(d){
+        //While there are items in the directory
+        while((dir = readdir(d)) != NULL){
+            //Compare current item name to fileName
+            if(strcmp(fileName, dir->d_name) == 0)
+                found = 1;
+        }
+    }
+    closedir(d);
+    return found;
+}
+
+
 /*********************************************************************
  * ** Function: sendFile()
  * ** Description:
@@ -243,10 +281,12 @@ void handleRequest(char *buffer, int socketFD){
     if(strncmp(buffer, "\%none", 5) != 0){
     //was entered by the client on the command-line
         //Validate file name
-
+        if(inDir(buffer) != 0){
             //If valid, send file across
             sendMsg(socketFD, buffer, "fil\n");
-            //Else send error message
+        }
+        //Else send error message
+        else sendMsg(socketFD, buffer, "nof\n");
     }
     //Else send error message
     else
