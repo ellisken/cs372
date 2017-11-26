@@ -164,12 +164,18 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
 
 /*********************************************************************
  * ** Function: sendDir()
- * ** Description:
+ * ** Description: Opens the server's current directory and sends
+ *      each item's name across to the client.
  * ** Parameters: file descriptor for socket connection
- * ** Pre-Conditions:
- * ** Post-Conditions:
+ * ** Pre-Conditions: There must be an open connection between server
+ *      and client, the server must have already received the client's
+ *      command, the server must have already sent its intent to the
+ *      client.
+ * ** Post-Conditions: A listing of the directory's contents will be
+ *      sent across to the client.
  * ** Sources Cited:
  *      https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+ *      https://en.wikibooks.org/wiki/C_Programming/dirent.h
  * *********************************************************************/
 void sendDir(int socketFD){
     //Create DIR stream pointer and dirent struct pointer
@@ -187,7 +193,7 @@ void sendDir(int socketFD){
             sendMsg(socketFD, dir->d_name);
         }
         //Signal to client that sending is finished
-        sendMsg(socketFD, "done\n");
+        sendMsg(socketFD, "~done\n");
     }
 
     //Close the directory

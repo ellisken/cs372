@@ -47,8 +47,10 @@ def main():
 
     #Receive file or response from server
     transferSocket, addr = dataSocket.accept()
-    response = transferSocket.recv(18).decode()
-    print('received response: ' + response)
+    #response = transferSocket.recv(18).decode()
+    handleResponse(getServResponse(transferSocket), transferSocket)
+    #print('received response: ' + response)
+
 
 
     clientSocket.close()
@@ -114,7 +116,73 @@ def makeRequest(listDir, fileName, socketFD):
     else:
         socketFD.sendall(fileName.encode())
 
-""" Function: receiveFile
+
+
+
+""" Function: getServResponse()
+    Description: Receives the server's response to
+        client's request and stores the response in a
+        variable to determine flow control of directory
+        listing -OR- file receipt.
+    Parameters: socket file descriptor
+    Pre-Conditions: The socket must be open and connected
+        with the server.
+    Post-Conditions: Returns the server's response as a string
+"""
+def getServResponse(socketFD):
+    response = socketFD.recv(3).decode()
+    return response
+
+
+""" Function: handleResponse()
+    Description: Handles the server's response by either
+        accepting and listing the server directory's contents
+        -OR- accepting the file transfer.
+    Parameters: The server's response, the connection
+        file descriptor
+    Pre-Conditions: There's an active connection between
+        the client and server. The client has already
+        made its request to the server.
+    Post-Conditions: Will list the server's directory contents,
+        accept a file transfer, or display an error message.
+"""
+def handleResponse(response, socketFD):
+    #If response is 'dir', accept directory contents
+    if response == "dir":
+        print ("Accepting directory listing\n")
+        receiveDir(socketFD)
+    #If response is 'fil', accept file transfer
+    if response == "fil":
+        print("Accepting file transfer")
+    if response == "nof":
+        print ("FILE NOT FOUND\n")
+    #Else if response is 'unk' print error message
+    else:
+        print("command unkown\n")
+    return
+
+
+
+""" Function: receiveDir()
+    Description: Accepts directory item names as messages
+        from the server and prints them to the console until
+        receipt of the "%done" signal.
+    Parameters: File descriptor for the open socket connection
+    Pre-Conditions: There must be a connection established,
+        handleResponse() must be called prior to usage.
+    Post-Conditions: The server's directory contents will be
+        displayed on the screen.
+"""
+def receiveDir(socketFD):
+    fileName = socketFD.recv(50)
+    while fileName != "~done":
+        print fileName
+        #Get next name
+        fileName = socketFD.recv(50)
+    return
+
+
+""" Function: receiveFile()
     Description:
     Parameters:
     Pre-Conditions:
