@@ -190,7 +190,8 @@ void sendDir(int socketFD){
         //While there are items in the directory
         while((dir = readdir(d)) != NULL){
             //Send that item's name across to the client
-            sendMsg(socketFD, dir->d_name);
+            sendMsg(socketFD, "file name\n");
+            //printf("%s\n", dir->d_name);
         }
         //Signal to client that sending is finished
         sendMsg(socketFD, "~done\n");
@@ -231,6 +232,7 @@ void handleRequest(char *buffer, int socketFD){
         //Send current directory listing across
         printf("Sending directory contents to client.\n");
         sendMsg(socketFD, "dir\n");
+        sendDir(socketFD);
     }
     //If command is !'%none', indicating that a filename
     if(strncmp(buffer, "\%none", 5) != 0){

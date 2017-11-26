@@ -151,15 +151,18 @@ def handleResponse(response, socketFD):
     if response == "dir":
         print ("Accepting directory listing\n")
         receiveDir(socketFD)
+        return
     #If response is 'fil', accept file transfer
     if response == "fil":
         print("Accepting file transfer")
+        return
     if response == "nof":
         print ("FILE NOT FOUND\n")
+        return
     #Else if response is 'unk' print error message
     else:
         print("command unkown\n")
-    return
+        return
 
 
 
@@ -178,7 +181,7 @@ def receiveDir(socketFD):
     while fileName != "~done":
         print fileName
         #Get next name
-        fileName = socketFD.recv(50)
+        fileName = socketFD.recv(50).decode()
     return
 
 
