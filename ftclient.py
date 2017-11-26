@@ -211,17 +211,16 @@ def receiveDir(socketFD):
 def receiveFile(fileName, socketFD):
     #Check file does not already exist
     #If file name exists, prompt user for action
-    if os.path.isfile('./'+ fileName):
+    while os.path.isfile('./'+ fileName):
         #Handle renaming or replacement
+        print("File name already in use.\n")
         choice = "default"
         while choice != "-n" and choice != "-r":
-            print(fileName + " already in use\n")
             choice = raw_input("Please enter -n to rename or -r to replace.\n")
             if choice == "-n":
                 #Replace name, else do nothing
                 fileName = raw_input("Enter new name: ")
 
-    print(fileName)
 
     #Open file for writing
     file = open(fileName, "w")
