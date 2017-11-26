@@ -178,7 +178,7 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
  *      https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
  *      https://en.wikibooks.org/wiki/C_Programming/dirent.h
  * *********************************************************************/
-void sendDir(int socketFD){
+void sendDir(int socketFD, int portNum){
     //Create DIR stream pointer and dirent struct pointer
     DIR *d;
     struct dirent *dir;
@@ -189,10 +189,10 @@ void sendDir(int socketFD){
 
     //Check open success
     if(d){
+        printf("Sending directory requested on port %i\n", portNum);
         //While there are items in the directory
         while((dir = readdir(d)) != NULL){
             //Send that item's name across to the client
-            printf("%s\n", dir->d_name);
             sendMsg(socketFD, buffer, strcat(dir->d_name, "\n"));
         }
 
@@ -212,7 +212,8 @@ void sendDir(int socketFD){
  * ** Description: Iterates over the server's current directory
  *      contents and returns true if the given file name is in the
  *      directory. Otherwise it returns false.
- * ** Parameters: Pointer to string that contains the file name.
+ * ** Parameters: Pointer to string that contains the file name,
+ *      the port number for the connection.
  * ** Pre-Conditions: The file name must be defined.
  * ** Post-Conditions: Returns true or false depending on whether
  *      the exact file name is found.
@@ -256,24 +257,23 @@ int inDir(char* fileName){
  * ** Post-Conditions: The file transfer will occur, otherwise
  *      the program will terminate with an error message.
  * *********************************************************************/
-void sendFile(char *fileName, int socketFD){
+void sendFile(char *fileName, int socketFD, int portNum){
     //Create buffer for file transfer
     char *buffer = malloc(BUFFER_SIZE);
     //Create file pointer and open file to read
     FILE *file = fopen(fileName, "r");
     if(file == NULL) error("Can't open file.\n");
+    printf("Sending \"%s\" requested on port %i.\n", fileName, portNum);
 
+    //While there are characters in the file
     while(!feof(file)){
+        //Read from the file
         int numBytesRead = fread(buffer, sizeof(char), 500, file);
-        printf("%s\n", buffer);
-        printf("%i\n", numBytesRead);
         //Send data chunks to client
         int success = write(socketFD, buffer, numBytesRead);
         if(success < 0)
             error("ERROR writing message to socket.");
     }
-    //Send end of transfer signal
-    //sendMsg(socketFD, buffer, "~done");
     //Close file
     fclose(file);
     //Free buffer
@@ -295,18 +295,20 @@ void sendFile(char *fileName, int socketFD){
  *      the file specified, or an error msg (file not found -OR-
  *      command unknown).
  * *********************************************************************/
-void handleRequest(char *buffer, int socketFD){
+void handleRequest(char *buffer, int socketFD, int portNum){
     //If command is -l
     if(strncmp(buffer, "-l", 2) == 0){
         //Send current directory listing across
-        printf("Sending directory contents to client.\n");
+        printf("List directory requested on port %i.\n", portNum);
         sendMsg(socketFD, buffer, "dir\n");
-        sendDir(socketFD);
+        sendDir(socketFD, portNum);
+        return;
     }
     //If command is !'%none', indicating that a filename
     //was entered by the client on the command-line
     if(strncmp(buffer, "\%none", 5) != 0){
-           //Validate file name
+        printf("File \"%s\" requested on port %i.\n", buffer, portNum);
+        //Validate file name
         if(inDir(buffer) != 0){
             //Save file name
             char *fileName = malloc(BUFFER_SIZE);
@@ -314,15 +316,20 @@ void handleRequest(char *buffer, int socketFD){
             //If valid, send file transfer intent
             sendMsg(socketFD, buffer, "fil\n");
             //Send file across
-            sendFile(fileName, socketFD);
+            sendFile(fileName, socketFD, portNum);
             free(fileName);
         }
         //Else send error message: file not found
-        else sendMsg(socketFD, buffer, "nof\n");
+        else {
+            printf("File not found. Sending error message to client: %i.\n", portNum);
+            sendMsg(socketFD, buffer, "nof\n");
+        }
+        return;
     }
     //Else send error message: command unknown
     else
         sendMsg(socketFD, buffer, "unk\n");
+    return;
 }
 
 
@@ -332,10 +339,8 @@ int main(int argc, char *argv[]){
     int listenSockFD, connectSockFD, dataSockFD;
     int portNum;
     struct sockaddr_in *servAddr = malloc(sizeof(struct sockaddr_in));
-    struct sockaddr_in *cliAddr=malloc(sizeof(struct sockaddr_in)); //From <netinet/in.h>
-    //int n; //For storing number of chars read or written
+    struct sockaddr_in *cliAddr = malloc(sizeof(struct sockaddr_in)); //From <netinet/in.h>
     char *buffer = malloc(BUFFER_SIZE); //For storing characters exchanged in socket connection
-    //char *command = malloc(BUFFER_SIZE); //For storing command
 
     //command-line parameter validation
     if(argc < 2){
@@ -359,37 +364,43 @@ int main(int argc, char *argv[]){
     //Start up server to listen
     startUp(portNum, servAddr, listenSockFD);
 
-    //Accept client connection
-    acceptClient(cliAddr, &connectSockFD, listenSockFD);
+    //Until SIGINT is received, accept connections
+    while(1){
 
-    //Get command and other info from the client
-    recMsg(buffer, connectSockFD);
+        //Accept client connection
+        acceptClient(cliAddr, &connectSockFD, listenSockFD);
 
-    //Get data port
-    char *dataPortStr = malloc(BUFFER_SIZE);
-    recMsg(dataPortStr, connectSockFD);
-    int dataPort = atoi(dataPortStr);
-    //dataPort = atoi("12345");
+        //Get command and other info from the client
+        //on the control connection
+        recMsg(buffer, connectSockFD);
 
-    //Establish data connection
-    //sleep(1);
-    createSocket(&dataSockFD);
-    printf("Data socket created.\n");
+        //Get data port for data connection
+        char *dataPortStr = malloc(BUFFER_SIZE);
+        recMsg(dataPortStr, connectSockFD);
+        int dataPort = atoi(dataPortStr);
 
-    cliAddr->sin_port = htons(dataPort);
-    if(connect(dataSockFD, (struct sockaddr*) cliAddr, sizeof(*cliAddr)) < 0)
-        error("ERROR establishing data connection.\n");
-    printf("Data connection established.\n");
+        //Establish data connection
+        sleep(1);
+        createSocket(&dataSockFD);
 
-    //Handle request
-    handleRequest(buffer, dataSockFD);
+        cliAddr->sin_port = htons(dataPort);
+        if(connect(dataSockFD, (struct sockaddr*) cliAddr, sizeof(*cliAddr)) < 0)
+            error("ERROR establishing data connection.\n");
 
-    //Close socket
-    close(dataSockFD);
-    //close(connectSockFD);
+        //Handle request on data connection
+        handleRequest(buffer, dataSockFD, dataPort);
+
+        //Close data connection socket
+        printf("Closing data connection.\n");
+        printf("\n\n");
+        close(dataSockFD);
+        //Free dataPort Str
+        free(dataPortStr);
+    }
+
+    //Close control socket and free memory
+    close(listenSockFD);
     free(servAddr);
     free(buffer);
-    //free(command);
-    free(dataPortStr);
     return 0;
 }

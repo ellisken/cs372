@@ -38,10 +38,8 @@ def main():
     #Send command or file name on control connection
     makeRequest(listDir, fileName, clientSocket)
 
-
     #Start listening on specified dataPort
     dataSocket = startListening(int(dataPort))
-    print("Listening for data connections on port: " + str(dataPort))
 
     #Send data port
     clientSocket.sendall(dataPort)
@@ -49,12 +47,9 @@ def main():
     #Receive file or response from server
     transferSocket, addr = dataSocket.accept()
     response = getServResponse(transferSocket)
-    print('received response: ' + response)
-    handleResponse(response, transferSocket, fileName)
-    print("Interaction complete.")
+    handleResponse(response, transferSocket, fileName, dataPort)
 
-    #Close sockets
-    transferSocket.close()
+    #Close control connection sockets
     clientSocket.close()
 
 
@@ -152,11 +147,10 @@ def getServResponse(socketFD):
     Post-Conditions: Will list the server's directory contents,
         accept a file transfer, or display an error message.
 """
-def handleResponse(response, socketFD, transferFile):
+def handleResponse(response, socketFD, transferFile, portNum):
     #If response is 'dir', accept directory contents
     if response == "dir":
-        print ("Accepting directory listing")
-        #receiveDir(socketFD)
+        print ("Receiving directory structure from server: " + portNum)
         fileName = getServResponse(socketFD)
         while fileName != "~done":
             print(fileName)
@@ -164,11 +158,11 @@ def handleResponse(response, socketFD, transferFile):
         return
     #If response is 'fil', accept file transfer
     elif response == "fil":
-        print("Accepting file transfer")
-        receiveFile(transferFile, socketFD)
+        receiveFile(transferFile, socketFD, portNum)
+        print("File transfer complete.")
         return
     elif response == "nof":
-        print ("FILE NOT FOUND")
+        print ("Server says: FILE NOT FOUND")
         return
     #Else if response is 'unk' print error message
     else:
@@ -177,30 +171,11 @@ def handleResponse(response, socketFD, transferFile):
 
 
 
-""" Function: receiveDir()
-    Description: Accepts directory item names as messages
-        from the server and prints them to the console until
-        receipt of the "%done" signal.
-    Parameters: File descriptor for the open socket connection
-    Pre-Conditions: There must be a connection established,
-        handleResponse() must be called prior to usage.
-    Post-Conditions: The server's directory contents will be
-        displayed on the screen.
-"""
-def receiveDir(socketFD):
-    fileName = getServResponse(socketFD).decode()
-    while fileName != "~done":
-        print (fileName)
-        #Get next name
-        fileName = getServResponse(socketFD).decode()
-    return
-
-
 
 """ Function: receiveFile()
     Description: Opens a new file for writing the transferred
         file contents to. If file name already exists, prompts
-        the user to rename.
+        the user to rename the new file.
     Parameters: The file name specified on the command-line, the
         file descriptor for the connection.
     Pre-Conditions: There must be an open connection between
@@ -208,29 +183,22 @@ def receiveDir(socketFD):
     Post-Conditions: The file transferred will be written to the
         client's directory.
 """
-def receiveFile(fileName, socketFD):
+def receiveFile(fileName, socketFD, portNum):
+    print("Receiving \"" + fileName + "\" from server on " + portNum)
     #Check file does not already exist
     #If file name exists, prompt user for action
     while os.path.isfile('./'+ fileName):
         #Handle renaming or replacement
-        print("File name already in use.\n")
-        choice = "default"
-        while choice != "-n" and choice != "-r":
-            choice = raw_input("Please enter -n to rename or -r to replace.\n")
-            if choice == "-n":
-                #Replace name, else do nothing
-                fileName = raw_input("Enter new name: ")
-
+        print("File name already in use.")
+        fileName = raw_input("Please enter new name for file: ")
 
     #Open file for writing
     file = open(fileName, "w")
     #Receive file contents
-    #data = socketFD.recv(10)
-    data = getServResponse(socketFD)
+    data = socketFD.recv(500)
     while data:
         file.write(data)
-        #data = socketFD.recv(10)
-        data = getServResponse(socketFD)
+        data = socketFD.recv(500)
     #Close file
     file.close()
 
