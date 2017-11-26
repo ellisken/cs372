@@ -8,7 +8,11 @@
  * ** Output: When prompted, sends either a current listing of
  *      ftserver.c's directory or transfers the .txt file specified
  *      by ftclient.py.
- * ** Sources Cited: This program relies heavily on...
+ * ** Sources Cited: This program relies heavily on the old style of
+ *      socket programming outlined here: http://www.linuxhowtos.org/C_C++/socket.htm
+ *
+ *      I also consulted other sources as noted below in the function
+ *      header blocks.
  * *********************************************************************/
 
 #include <stdio.h> //input/output
@@ -366,7 +370,6 @@ int main(int argc, char *argv[]){
 
     //Until SIGINT is received, accept connections
     while(1){
-
         //Accept client connection
         acceptClient(cliAddr, &connectSockFD, listenSockFD);
 

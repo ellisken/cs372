@@ -16,11 +16,11 @@ def main():
     #Get server name, server port number, command,
     #file name, and data port number from console
     parser = argparse.ArgumentParser()
-    parser.add_argument('server', nargs=1, default="none", type=str)
-    parser.add_argument('servPort', nargs=1, default=0, type=int)
-    parser.add_argument('-l', dest='listDir', action='store_true', default=False)
-    parser.add_argument('-g', dest='fileName', default="%none", type=str)
-    parser.add_argument('dataPort', nargs=1, default=0, type=str)
+    parser.add_argument('server', nargs=1, default="none", type=str, help='Server\'s name or IP.')
+    parser.add_argument('servPort', nargs=1, default=0, type=int, help='Server\'s port number.')
+    parser.add_argument('-l', dest='listDir', action='store_true', default=False, help='Request dir listing.')
+    parser.add_argument('-g', dest='fileName', default="%none", type=str, help='Request file transfer. Takes file name arg.')
+    parser.add_argument('dataPort', nargs=1, default=0, type=str, help='Data connection port num. Must be valid.')
 
 
     args = parser.parse_args()
