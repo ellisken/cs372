@@ -156,6 +156,7 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
 
     //Check for success
     if(*controlFD < 0) error("ERROR on accept");
+    else printf("Connection from client.\n");
 }
 
 
@@ -184,20 +185,33 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
 /*********************************************************************
  * ** Function: handleRequest()
  * ** Description:
- * ** Parameters:
- * ** Pre-Conditions:
- * ** Post-Conditions:
+ * ** Parameters: pointer to buffer that's storing the command or
+ *      file name, file descriptor for socket over which data will be
+ *      sent.
+ * ** Pre-Conditions: A connection must be established for sending
+ *      messages or data between server and client, a command or
+ *      file name must be loaded in the buffer for parsing.
+ * ** Post-Conditions: The server will send its directory listing,
+ *      the file specified, or an error msg (file not found -OR-
+ *      command unknown).
  * *********************************************************************/
-void handleRequest(){
-    //Receive command from the client
+void handleRequest(char *buffer, int socketFD){
     //If command is -l
+    if(strncmp(buffer, "-l", 2) == 0)
         //Send current directory listing across
-    //If command is -g
+        printf("Sending directory contents to client.\n");
+        sendMsg(socketFD, "Received command for directory.\n");
+    //If command is !'%none', indicating that a filename
+    if(strncmp(buffer, "\%none", 5) != 0)
+    //was entered by the client on the command-line
         //Validate file name
+
             //If valid, send file across
+            sendMsg(socketFD, "Received file name. \n");
             //Else send error message
     //Else send error message
-
+    else
+        sendMsg(socketFD, "command unknown\n");
 }
 
 
@@ -241,25 +255,28 @@ int main(int argc, char *argv[]){
     recMsg(buffer, connectSockFD);
     printf("Here is the command the client sent: %s\n", buffer);
 
+    //Get data port
+    char *dataPortStr = malloc(BUFFER_SIZE);
+    recMsg(dataPortStr, connectSockFD);
+    int dataPort = atoi(dataPortStr);
+
     //Establish data connection
     createSocket(&dataSockFD);
     printf("Data socket created.\n");
 
-    cliAddr->sin_port = htons(3762);
+    cliAddr->sin_port = htons(dataPort);
     if(connect(dataSockFD, (struct sockaddr*) cliAddr, sizeof(*cliAddr)) < 0)
         error("ERROR establishing data connection.\n");
-    printf("Data connecting poopies\n");
-    bzero(buffer, BUFFER_SIZE);
-    printf("Please enter your message: ");
-    fgets(buffer, BUFFER_SIZE, stdin);
-    sendMsg(dataSockFD, buffer);
-    //n = write(dataSockFD, "I got your command", 18);
-    //if(n < 0) error("ERROR writing to socket.");
+    printf("Data connection established.\n");
+
+    //Handle request
+    handleRequest(buffer, dataSockFD);
 
     //Close socket
     close(dataSockFD);
     //close(connectSockFD);
     free(servAddr);
     free(buffer);
+    free(dataPortStr);
     return 0;
 }

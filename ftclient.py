@@ -18,8 +18,8 @@ def main():
     parser.add_argument('server', nargs=1, default="none", type=str)
     parser.add_argument('servPort', nargs=1, default=0, type=int)
     parser.add_argument('-l', dest='listDir', action='store_true', default=False)
-    parser.add_argument('-g', dest='fileName', default="none", type=str)
-    parser.add_argument('dataPort', nargs=1, default=0, type=int)
+    parser.add_argument('-g', dest='fileName', default="%none", type=str)
+    parser.add_argument('dataPort', nargs=1, default=0, type=str)
 
 
     args = parser.parse_args()
@@ -37,21 +37,18 @@ def main():
     #Send command or file name on control connection
     makeRequest(listDir, fileName, clientSocket)
 
+    #Send data port
+    clientSocket.sendall(dataPort)
+
     #Start listening on specified dataPort
-    dataSocket = startListening(dataPort)
+    dataSocket = startListening(int(dataPort))
     print("Listening for data connections on port: " + str(dataPort))
 
-    #Send command or file name
 
-    #testSentence = "Hello, server!"
-    #clientSocket.sendall(testSentence)
-    #makeRequest(listDir, fileName, dataSocket)
-    response = clientSocket.recv(18)
-    print response
-
+    #Receive file or response from server
     transferSocket, addr = dataSocket.accept()
-    poopie = transferSocket.recv(18).decode()
-    print('received response: ' + poopie)
+    response = transferSocket.recv(18).decode()
+    print('received response: ' + response)
 
 
     clientSocket.close()
