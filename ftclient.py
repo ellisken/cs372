@@ -37,19 +37,19 @@ def main():
     #Send command or file name on control connection
     makeRequest(listDir, fileName, clientSocket)
 
-    #Send data port
-    clientSocket.sendall(dataPort)
 
     #Start listening on specified dataPort
     dataSocket = startListening(int(dataPort))
     print("Listening for data connections on port: " + str(dataPort))
 
+    #Send data port
+    clientSocket.sendall(dataPort)
 
     #Receive file or response from server
     transferSocket, addr = dataSocket.accept()
-    #response = transferSocket.recv(18).decode()
-    handleResponse(getServResponse(transferSocket), transferSocket)
-    #print('received response: ' + response)
+    response = getServResponse(transferSocket)
+    print('received response: ' + response)
+    handleResponse(response, transferSocket)
 
 
 
@@ -130,7 +130,9 @@ def makeRequest(listDir, fileName, socketFD):
     Post-Conditions: Returns the server's response as a string
 """
 def getServResponse(socketFD):
-    response = socketFD.recv(3).decode()
+    response = socketFD.recv(500).decode()
+    response = response.rstrip('\0')
+    response = response.rstrip()
     return response
 
 
@@ -149,19 +151,23 @@ def getServResponse(socketFD):
 def handleResponse(response, socketFD):
     #If response is 'dir', accept directory contents
     if response == "dir":
-        print ("Accepting directory listing\n")
-        receiveDir(socketFD)
+        print ("Accepting directory listing")
+        #receiveDir(socketFD)
+        fileName = getServResponse(socketFD)
+        while fileName != "~done":
+            print(fileName)
+            fileName = getServResponse(socketFD)
         return
     #If response is 'fil', accept file transfer
-    if response == "fil":
+    elif response == "fil":
         print("Accepting file transfer")
         return
-    if response == "nof":
-        print ("FILE NOT FOUND\n")
+    elif response == "nof":
+        print ("FILE NOT FOUND")
         return
     #Else if response is 'unk' print error message
     else:
-        print("command unkown\n")
+        print("command unknown")
         return
 
 
@@ -177,11 +183,11 @@ def handleResponse(response, socketFD):
         displayed on the screen.
 """
 def receiveDir(socketFD):
-    fileName = socketFD.recv(50)
+    fileName = getServResponse(socketFD).decode()
     while fileName != "~done":
-        print fileName
+        print (fileName)
         #Get next name
-        fileName = socketFD.recv(50).decode()
+        fileName = getServResponse(socketFD).decode()
     return
 
 

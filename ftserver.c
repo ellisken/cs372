@@ -104,9 +104,11 @@ void startUp(int portNum, struct sockaddr_in *servAddr, int sockFD){
  *      with an open socket. The char array must be malloc'd.
  * ** Post-Conditions: The message will be sent to a connected client.
  * *********************************************************************/
-void sendMsg(int socketFD, const char *msg){
+void sendMsg(int socketFD, char *buffer, const char *msg){
     //Write to the socket
-    int success = write(socketFD, msg, BUFFER_SIZE);
+    bzero(buffer, BUFFER_SIZE);
+    strcpy(buffer, msg);
+    int success = write(socketFD, buffer, BUFFER_SIZE);
     if(success < 0)
         error("ERROR writing message to socket.");
 }
@@ -181,6 +183,7 @@ void sendDir(int socketFD){
     //Create DIR stream pointer and dirent struct pointer
     DIR *d;
     struct dirent *dir;
+    char *buffer = malloc(BUFFER_SIZE);
 
     //Open the directory
     d = opendir(".");
@@ -190,15 +193,17 @@ void sendDir(int socketFD){
         //While there are items in the directory
         while((dir = readdir(d)) != NULL){
             //Send that item's name across to the client
-            sendMsg(socketFD, "file name\n");
-            //printf("%s\n", dir->d_name);
+            printf("%s\n", dir->d_name);
+            sendMsg(socketFD, buffer, strcat(dir->d_name, "\n"));
         }
+
         //Signal to client that sending is finished
-        sendMsg(socketFD, "~done\n");
+        sendMsg(socketFD, buffer, "~done\n");
     }
 
     //Close the directory
     closedir(d);
+    free(buffer);
 }
 
 
@@ -231,7 +236,7 @@ void handleRequest(char *buffer, int socketFD){
     if(strncmp(buffer, "-l", 2) == 0){
         //Send current directory listing across
         printf("Sending directory contents to client.\n");
-        sendMsg(socketFD, "dir\n");
+        sendMsg(socketFD, buffer, "dir\n");
         sendDir(socketFD);
     }
     //If command is !'%none', indicating that a filename
@@ -240,12 +245,12 @@ void handleRequest(char *buffer, int socketFD){
         //Validate file name
 
             //If valid, send file across
-            sendMsg(socketFD, "fil\n");
+            sendMsg(socketFD, buffer, "fil\n");
             //Else send error message
     }
     //Else send error message
     else
-        sendMsg(socketFD, "unk\n");
+        sendMsg(socketFD, buffer, "unk\n");
 }
 
 
@@ -258,6 +263,7 @@ int main(int argc, char *argv[]){
     struct sockaddr_in *cliAddr=malloc(sizeof(struct sockaddr_in)); //From <netinet/in.h>
     //int n; //For storing number of chars read or written
     char *buffer = malloc(BUFFER_SIZE); //For storing characters exchanged in socket connection
+    //char *command = malloc(BUFFER_SIZE); //For storing command
 
     //command-line parameter validation
     if(argc < 2){
@@ -286,7 +292,7 @@ int main(int argc, char *argv[]){
 
     //Get command and other info from the client
     recMsg(buffer, connectSockFD);
-    printf("Here is the command the client sent: %s\n", buffer);
+    //printf("Here is the command the client sent: %s\n", buffer);
 
     //Get data port
     char *dataPortStr = malloc(BUFFER_SIZE);
@@ -294,6 +300,7 @@ int main(int argc, char *argv[]){
     int dataPort = atoi(dataPortStr);
 
     //Establish data connection
+    sleep(5);
     createSocket(&dataSockFD);
     printf("Data socket created.\n");
 
@@ -310,6 +317,7 @@ int main(int argc, char *argv[]){
     //close(connectSockFD);
     free(servAddr);
     free(buffer);
+    //free(command);
     free(dataPortStr);
     return 0;
 }
