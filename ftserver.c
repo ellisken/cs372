@@ -19,6 +19,7 @@
 #include <sys/socket.h> //defn's of structures needed for sockets
 #include <netinet/in.h> //constants and structs needed for internet domain addrs
 #include <netdb.h>
+#include <dirent.h> //for getting current directory contents
 const int BUFFER_SIZE = 500;
 
 
@@ -164,11 +165,34 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
 /*********************************************************************
  * ** Function: sendDir()
  * ** Description:
- * ** Parameters:
+ * ** Parameters: file descriptor for socket connection
  * ** Pre-Conditions:
  * ** Post-Conditions:
+ * ** Sources Cited:
+ *      https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
  * *********************************************************************/
+void sendDir(int socketFD){
+    //Create DIR stream pointer and dirent struct pointer
+    DIR *d;
+    struct dirent *dir;
 
+    //Open the directory
+    d = opendir(".");
+
+    //Check open success
+    if(d){
+        //While there are items in the directory
+        while((dir = readdir(d)) != NULL){
+            //Send that item's name across to the client
+            sendMsg(socketFD, dir->d_name);
+        }
+        //Signal to client that sending is finished
+        sendMsg(socketFD, "done\n");
+    }
+
+    //Close the directory
+    closedir(d);
+}
 
 
 /*********************************************************************
@@ -197,21 +221,23 @@ void acceptClient(struct sockaddr_in *cliAddr, int *controlFD, int servFD){
  * *********************************************************************/
 void handleRequest(char *buffer, int socketFD){
     //If command is -l
-    if(strncmp(buffer, "-l", 2) == 0)
+    if(strncmp(buffer, "-l", 2) == 0){
         //Send current directory listing across
         printf("Sending directory contents to client.\n");
-        sendMsg(socketFD, "Received command for directory.\n");
+        sendMsg(socketFD, "dir\n");
+    }
     //If command is !'%none', indicating that a filename
-    if(strncmp(buffer, "\%none", 5) != 0)
+    if(strncmp(buffer, "\%none", 5) != 0){
     //was entered by the client on the command-line
         //Validate file name
 
             //If valid, send file across
-            sendMsg(socketFD, "Received file name. \n");
+            sendMsg(socketFD, "fil\n");
             //Else send error message
+    }
     //Else send error message
     else
-        sendMsg(socketFD, "command unknown\n");
+        sendMsg(socketFD, "unk\n");
 }
 
 
@@ -220,10 +246,9 @@ int main(int argc, char *argv[]){
     //Variable, file descriptors, and Struct definitions
     int listenSockFD, connectSockFD, dataSockFD;
     int portNum;
-    //socklen_t clilen; //Stores size of address of the client
     struct sockaddr_in *servAddr = malloc(sizeof(struct sockaddr_in));
     struct sockaddr_in *cliAddr=malloc(sizeof(struct sockaddr_in)); //From <netinet/in.h>
-    int n; //For storing number of chars read or written
+    //int n; //For storing number of chars read or written
     char *buffer = malloc(BUFFER_SIZE); //For storing characters exchanged in socket connection
 
     //command-line parameter validation
